@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080808">
+  <title>AYUSHMAN | Pattern Lock</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #080808;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 390px;
+      text-align: center;
+    }
+
+    .eyebrow {
+      color: #888;
+      font-size: 11px;
+      letter-spacing: 4px;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 10vw, 48px);
+      letter-spacing: 7px;
+      font-weight: 800;
+    }
+
+    .line {
+      height: 1px;
+      width: 58px;
+      background: #fff;
+      margin: 20px auto 28px;
+    }
+
+    .subtitle {
+      color: #aaa;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .lock-wrap {
+      width: 100%;
+      max-width: 330px;
+      margin: 0 auto;
+      padding: 8px;
+      border: 1px solid #292929;
+      border-radius: 24px;
+      background: #0d0d0d;
+    }
+
+    svg {
+      width: 100%;
+      display: block;
+      touch-action: none;
+      user-select: none;
+    }
+
+    .dot {
+      fill: #101010;
+      stroke: #777;
+      stroke-width: 2;
+    }
+
+    .dot.active {
+      fill: #fff;
+      stroke: #fff;
+    }
+
+    .pattern-line {
+      stroke: #fff;
+      stroke-width: 3;
+      stroke-linecap: round;
+      opacity: .9;
+    }
+
+    #status {
+      color: #ccc;
+      min-height: 22px;
+      font-size: 14px;
+      margin: 22px 0 16px;
+    }
+
+    button {
+      background: #fff;
+      color: #080808;
+      border: 0;
+      padding: 12px 28px;
+      border-radius: 30px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      cursor: pointer;
+    }
+
+    .note {
+      margin-top: 28px;
+      font-size: 11px;
+      color: #666;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <div class="eyebrow">PERSONAL PATTERN LOCK</div>
+    <h1>AYUSHMAN</h1>
+    <div class="line"></div>
+    <p class="subtitle">Draw your pattern</p>
+
+    <div class="lock-wrap">
+      <svg id="lock" viewBox="0 0 300 300"
+           aria-label="Interactive 3 by 3 pattern drawing demo">
+        <g id="lines"></g>
+        <g id="dots"></g>
+      </svg>
+    </div>
+
+    <p id="status" aria-live="polite">Connect the dots to begin</p>
+    <button id="reset" type="button">TRY AGAIN</button>
+
+    <p class="note">
+      ROYAL • MINIMAL • PERSONAL<br>
+      Pattern Lock Demo · Created by Ayushman
+    </p>
+  </main>
+
+  <script>
+    const svg = document.getElementById("lock");
+    const dotsGroup = document.getElementById("dots");
+    const linesGroup = document.getElementById("lines");
+    const status = document.getElementById("status");
+
+    const points = [];
+    const selected = [];
+    const used = new Set();
+    let drawing = false;
+
+    // Create nine dots in a 3 x 3 grid.
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 3; col++) {
+        const i = row * 3 + col;
+        const point = {
+          x: 50 + col * 100,
+          y: 50 + row * 100,
+          id: i
+        };
+
+        points.push(point);
+
+        const circle = document.createElementNS(
+          "http://www.w3.org/2000/svg", "circle"
+        );
+
+        circle.setAttribute("cx", point.x);
+        circle.setAttribute("cy", point.y);
+        circle.setAttribute("r", 9);
+        circle.setAttribute("class", "dot");
+        circle.dataset.id = i;
+        dotsGroup.appendChild(circle);
+      }
+    }
+
+    function getPosition(event) {
+      const rect = svg.getBoundingClientRect();
+
+      return {
+        x: (event.clientX - rect.left) * 300 / rect.width,
+        y: (event.clientY - rect.top) * 300 / rect.height
+      };
+    }
+
+    function findDot(pos) {
+      return points.find(p =>
+        Math.hypot(p.x - pos.x, p.y - pos.y) < 27
+      );
+    }
+
+    function addDot(point) {
+      if (used.has(point.id)) return;
+
+      used.add(point.id);
+      selected.push(point);
+
+      const circle = dotsGroup.querySelector(
+        '[data-id="' + point.id + '"]'
+      );
+      circle.classList.add("active");
+
+      if (selected.length > 1) {
+        const previous = selected[selected.length - 2];
+        const line = document.createElementNS(
+          "http://www.w3.org/2000/svg", "line"
+        );
+
+        line.setAttribute("x1", previous.x);
+        line.setAttribute("y1", previous.y);
+        line.setAttribute("x2", point.x);
+        line.setAttribute("y2", point.y);
+        line.setAttribute("class", "pattern-line");
+        linesGroup.appendChild(line);
+      }
+
+      status.textContent = selected.length + " dots connected";
+    }
+
+    svg.addEventListener("pointerdown", event => {
+      event.preventDefault();
+      resetPattern();
+      drawing = true;
+      svg.setPointerCapture(event.pointerId);
+
+      const point = findDot(getPosition(event));
+      if (point) addDot(point);
+    });
+
+    svg.addEventListener("pointermove", event => {
+      if (!drawing) return;
+
+      const point = findDot(getPosition(event));
+      if (point) addDot(point);
+    });
+
+    function finishPattern() {
+      if (!drawing) return;
+      drawing = false;
+
+      status.textContent = selected.length >= 2
+        ? "Demo complete · " + selected.length + " dots connected"
+        : "Connect at least 2 dots. Try again.";
+    }
+
+    svg.addEventListener("pointerup", finishPattern);
+    svg.addEventListener("pointercancel", finishPattern);
+
+    function resetPattern() {
+      drawing = false;
+      selected.length = 0;
+      used.clear();
+      linesGroup.replaceChildren();
+
+      dotsGroup.querySelectorAll("circle").forEach(circle => {
+        circle.classList.remove("active");
+      });
+
+      status.textContent = "Connect the dots to begin";
+    }
+
+    document.getElementById("reset").addEventListener(
+      "click", resetPattern
+    );
+  </script>
+</body>
+</html>
